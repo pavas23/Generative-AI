@@ -1,6 +1,6 @@
 import torch
 import matplotlib.pyplot as plt
-from vae import latent_sizes, VAE, test_loader
+from PART_A.VAE.vae import latent_sizes, VAE, test_loader
 
 for latent_size in latent_sizes:
     print(f"Generating Images for latent size: {latent_size}")
