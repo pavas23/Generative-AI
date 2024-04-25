@@ -196,5 +196,5 @@ print('--------Finshed Training Encoder--------')
 ############################################################################################
 
 # saving trained models
-torch.save(gen.state_dict(),"./generator.pth")
-torch.save(encoder.state_dict(),"./encoder.pth")
+torch.save(gen.state_dict(),"./trained_models/generator.pth")
+torch.save(encoder.state_dict(),"./trained_models/encoder.pth")
