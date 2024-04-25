@@ -158,7 +158,7 @@ for lr in LEARNING_RATES:
                 # Encode fake images
                 encoded_fake = encoder(fake)
 
-                # Compute reconstruction loss
+                # Compute reconstruction loss, mse between input image feed to encoder and output image given by the gan generator
                 loss = criterion(encoded_fake, noise.view(noise.size(0), -1))
                 total_loss += loss.item()
 
@@ -194,3 +194,7 @@ print(f"Best LR: {best_lr}, Best Beta1: {best_beta1}, Best Validation Loss: {bes
 print('--------Finshed Training Encoder--------')
 
 ############################################################################################
+
+# saving trained models
+torch.save(gen.state_dict(),"./generator.pth")
+torch.save(encoder.state_dict(),"./encoder.pth")
