@@ -1,3 +1,7 @@
+## Steps to Run
+
+```pip install -r requirements.txt```
+
 ```python
 mkdir /dataset
 dir structurre should be:
@@ -14,6 +18,7 @@ dir structurre should be:
     list_eval_partition.txt
 ```
 download the celeba dataset inside the ```/dataset/celeba``` dir
+
 make ```list_attr_celeba.txt``` and ```list_eval_partition.txt```
 
 run ```python split_dataset.py``` to populate train, val and test dirs
