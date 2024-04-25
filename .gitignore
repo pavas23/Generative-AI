@@ -1,2 +1,3 @@
 .venv
 /PART_B/DeepConvGAN/dataset
+.DS_Store
