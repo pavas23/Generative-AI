@@ -4,7 +4,7 @@
 
 ```python
 mkdir /dataset
-dir structurre should be:
+dir structure should be:
   /dataset
     /celeba
       /img_align_celeba
