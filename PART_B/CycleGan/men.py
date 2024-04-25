@@ -172,13 +172,11 @@ optimizer_dy = optim.Adam(discriminator_y.parameters(), lr=lr, betas=(beta1, 0.9
 criterion_gan = nn.MSELoss()
 criterion_cycle = nn.L1Loss()
 
-buffer_fake_X = []
-buffer_fake_Y = []
-
 num_epochs=50
 lambda_cycle = 10 # weight for cycle consistency
 
 for epoch in range(num_epochs):
+    print(f"...Epoch started...")
     total_loss = 0.
     for(batch_X, batch_Y) in zip(dataloader1, dataloader2):
         real_X = batch_X
