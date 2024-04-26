@@ -41,14 +41,14 @@ def copy_images(source_dir, image_names, destination_dir):
         print(destination_path)
         shutil.copyfile(source_path, destination_path)
 
-root_dir = "dataset"
+root_dir = ""
 partition_file = "list_eval_partition.txt"
 train_img_names, val_img_names, test_img_names = split_dataset(root_dir,partition_file)
 
-source_dir = "./dataset/celeba/img_align_celeba"
-destination_dir_train = "./dataset/celeba_train/img_align_celeba"
-destination_dir_val = "./dataset/celeba_val/img_align_celeba"
-destination_dir_test = "./dataset/celeba_test/img_align_celeba"
+source_dir = "/mnt/MIG_store/Datasets/celeba/img_align_celeba/img_align_celeba"
+destination_dir_train = "./celeba_train"
+destination_dir_val = "./celeba_val"
+destination_dir_test = "./celeba_test"
 
 # this will copy images to respective directories
 copy_images(source_dir,train_img_names,destination_dir_train)

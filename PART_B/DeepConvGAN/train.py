@@ -4,6 +4,7 @@ import torch.optim as optim
 import torchvision
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
+import os
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from model import Discriminator, Generator, Encoder, initialize_weights
@@ -35,17 +36,37 @@ transforms = transforms.Compose(
     ]
 )
 
+os.makedirs("results", exist_ok=True)
+os.makedirs("logs", exist_ok=True)
+os.makedirs("trained_models", exist_ok=True)
+
 # for displaying the image
-def imshow(img):
-    img = img / 2 + 0.5  # unnormalize
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
+def save_image(tensor, file_path):
+    # Ensure the tensor is on the CPU and detached from gradients
+    tensor = tensor.cpu().detach()
+
+    # Normalize and convert to numpy
+    tensor = tensor / 2 + 0.5  # Unnormalize
+    npimg = tensor.numpy()
+
+    # Check tensor dimensions
+    if len(npimg.shape) == 3:  # If it’s a single image, transpose as (H, W, C)
+        npimg = np.transpose(npimg, (1, 2, 0))
+    elif len(npimg.shape) == 4:  # If it's a batch, create a grid
+        npimg = torchvision.utils.make_grid(tensor, normalize=True).numpy()
+        npimg = np.transpose(npimg, (1, 2, 0))
+
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    # Save image
+    plt.imsave(file_path, npimg)
+
 
 # taking dataset from loacal directory
-dataset_train = datasets.ImageFolder(root="./dataset/celeba_train", transform=transforms)
-dataset_val = datasets.ImageFolder(root="./dataset/celeba_val", transform=transforms)
-dataset_test = datasets.ImageFolder(root="./dataset/celeba_test", transform=transforms)
+dataset_train = datasets.ImageFolder(root="./dataset/", transform=transforms)
+dataset_val = datasets.ImageFolder(root="./dataset/", transform=transforms)
+dataset_test = datasets.ImageFolder(root="./dataset/", transform=transforms)
 
 dataloader_train = DataLoader(dataset_train, batch_size=BATCH_SIZE, shuffle=True)
 dataloader_val = DataLoader(dataset_val, batch_size=BATCH_SIZE, shuffle=True)
@@ -75,7 +96,7 @@ step = 0
 gen.train()
 disc.train()
 
-for epoch in range(NUM_EPOCHS):
+for epoch in range(NUM_EPOCHS*2):
     # for each epoch, it iterates on every batch one by one
     for batch_idx, (real, _) in enumerate(dataloader_train):
         real = real.to(device)
@@ -100,22 +121,23 @@ for epoch in range(NUM_EPOCHS):
         opt_gen.step()
 
         # Print losses occasionally and print to tensorboard
-        if batch_idx % 100 == 0:
-            print(
-                f"Epoch: [{epoch}/{NUM_EPOCHS}] Batch: [{batch_idx}/{len(dataloader_train)}] Loss D: [{loss_disc:.4f}], loss G: [{loss_gen:.4f}]"
-            )
+        print(
+            f"Epoch: [{epoch}/{NUM_EPOCHS*2}] Loss D: {loss_disc:.4f}, loss G: {loss_gen:.4f}"
+        )
 
-            with torch.no_grad():
-                # at every step for fixed noise, check how the images produced by generator improves over time
-                fake = gen(fixed_noise)
-                imshow(torchvision.utils.make_grid(fake[0]))
+        with torch.no_grad():
+            # at every step for fixed noise, check how the images produced by generator improves over time
+            fake = gen(fixed_noise).cpu()
+            save_image(fake, f"results/img_{epoch}.png")
 
-                # take out (up to) 32 examples
-                img_grid_real = torchvision.utils.make_grid(real[:32], normalize=True)
-                img_grid_fake = torchvision.utils.make_grid(fake[:32], normalize=True)
+            # take out (up to) 32 examples
+            img_grid_real = torchvision.utils.make_grid(real[:32].cpu(), normalize=True)
+            img_grid_fake = torchvision.utils.make_grid(fake[:32].cpu(), normalize=True)
+            
+            save_image(img_grid_fake, f"results/img_grid_fake_{epoch}.png")
 
-                writer_real.add_image("Real", img_grid_real, global_step=step)
-                writer_fake.add_image("Fake", img_grid_fake, global_step=step)
+            writer_real.add_image("Real", img_grid_real, global_step=step)
+            writer_fake.add_image("Fake", img_grid_fake, global_step=step)
 
             step += 1
 
@@ -131,7 +153,7 @@ opt_enc = optim.Adam(encoder.parameters())
 criterion_enc = nn.MSELoss()
 
 # defining best parameters for encoder
-best_loss = float('int')
+best_loss = float('inf')
 best_lr = None
 best_beta1 = None
 

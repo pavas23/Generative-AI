@@ -13,16 +13,20 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from PIL import Image
 
-transform = transforms.Compose([
-    transforms.Resize(128),
-    transforms.CenterCrop(128),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.5] * 3, std=[0.5] * 3)
-])
+transform = transforms.Compose(
+    [
+        transforms.Resize(128),
+        transforms.CenterCrop(128),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5] * 3, std=[0.5] * 3),
+    ]
+)
 
 batch_size = 32
-lr=0.0002
+lr = 0.0002
 epochs = 10
+
+
 class Generator(nn.Module):
     def __init__(self, input_channels, output_channels):
         super(Generator, self).__init__()
@@ -53,7 +57,7 @@ class Generator(nn.Module):
             nn.InstanceNorm2d(64),
             nn.ReLU(True),
             nn.ConvTranspose2d(64, output_channels, 4, 2, 1, bias=False),
-            nn.Tanh()
+            nn.Tanh(),
         )
 
     def forward(self, x):
@@ -112,7 +116,6 @@ class CelebADataset(Dataset):
         ]
 
     def __len__(self):
-        print(f"----------{len(self.image_paths)} images found.----------")
         return len(self.image_paths)
 
     def __getitem__(self, idx):
@@ -123,6 +126,7 @@ class CelebADataset(Dataset):
             image = self.transform(image)
 
         return image
+
 
 men_no_glasses_dataset = CelebADataset(
     "/mnt/MIG_store/Datasets/celeba", "men_no_glasses", transform=transform
@@ -176,21 +180,20 @@ class CycleGAN(nn.Module):
             disc_fake_B,
         )
 
+
 def loss(disc_real, disc_fake):
     real_loss = F.mse_loss(disc_real, torch.ones_like(disc_real))
     fake_loss = F.mse_loss(disc_fake, torch.zeros_like(disc_fake))
     return (real_loss + fake_loss) / 2
 
+
 def cycle_loss(real, cycle):
     return F.l1_loss(real, cycle)
 
-gen_A2B = Generator(
-    input_channels=3, output_channels=3
-)  
-gen_B2A = Generator(
-    input_channels=3, output_channels=3
-)  
-disc_A = Discriminator(input_channels=3) 
+
+gen_A2B = Generator(input_channels=3, output_channels=3)
+gen_B2A = Generator(input_channels=3, output_channels=3)
+disc_A = Discriminator(input_channels=3)
 disc_B = Discriminator(input_channels=3)
 
 cycle_gan = CycleGAN(gen_A2B, gen_B2A, disc_A, disc_B)
@@ -205,9 +208,8 @@ disc_opt = optim.Adam(
 )
 
 for epoch in range(epochs):
-    print(f"Starting epoch {epoch+1}")
-    total_loss = 0.
-    for real_A, real_B in zip(men_no_glasses_loader, men_with_glasses_loader):
+    total_loss = 0.0
+    for real_A, real_B in zip(women_with_glasses_loader, men_with_glasses_loader):
         (
             fake_A,
             fake_B,
@@ -224,9 +226,7 @@ for epoch in range(epochs):
             + cycle_loss(real_A, cycle_A)
             + cycle_loss(real_B, cycle_B)
         )
-        disc_loss = loss(disc_real_A, disc_fake_A) + loss(
-            disc_real_B, disc_fake_B
-        )
+        disc_loss = loss(disc_real_A, disc_fake_A) + loss(disc_real_B, disc_fake_B)
 
         gen_opt.zero_grad()
         gen_loss.backward(retain_graph=True)
@@ -235,18 +235,18 @@ for epoch in range(epochs):
         disc_opt.zero_grad()
         disc_loss.backward(retain_graph=True)
         disc_opt.step()
-        
-        total_loss = gen_loss + disc_loss
-    print(f"Epoch [{epoch+1}/{epochs}] Loss: {total_loss.item()}")
 
-sample_real_A = next(iter(men_no_glasses_loader))[:5]  
-sample_fake_B = gen_A2B(sample_real_A)  
+        total_loss = gen_loss + disc_loss
+    print(f"Epoch [{epoch}/{epochs}] Loss: {total_loss.item()}")
+
+sample_real_A = next(iter(men_no_glasses_loader))[:5]
+sample_fake_B = gen_A2B(sample_real_A)
 torchvision.utils.save_image(
-    sample_fake_B, "men_glasses_to_women_glasses.png", nrow=5, normalize=True
+    sample_fake_B, "men_no_glasses_to_men_with_glasses.png", nrow=5, normalize=True
 )
 
 sample_real_B = next(iter(men_with_glasses_loader))[:5]
 sample_fake_A = gen_B2A(sample_real_B)
 torchvision.utils.save_image(
-    sample_fake_B, "women_glasses_to_men_glasses.png", nrow=5, normalize=True
+    sample_fake_A, "men_with_glasses_to_men_no_glasses.png", nrow=5, normalize=True
 )
