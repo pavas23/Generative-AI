@@ -1,222 +1,301 @@
+import argparse
+import os
+import random
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torchvision
-import torchvision.datasets as datasets
+import torch.nn.parallel
+import torch.optim as optim
+import torch.utils.data
+import torchvision.datasets as dset
 import torchvision.transforms as transforms
-import os
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-from model import Discriminator, Generator, Encoder, initialize_weights
-import matplotlib.pyplot as plt
+import torchvision.utils as vutils
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from IPython.display import HTML
+import multiprocessing
+from model import Discriminator, Generator, Encoder, weights_init
 
-# selecting the device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def main():
+    # set random seed for reproducibility, so that when everytime code is run, same results are produced
+    manualSeed = 999
+    random.seed(manualSeed)
+    torch.manual_seed(manualSeed)
+    torch.use_deterministic_algorithms(True)
 
-# defining hyperparameters (as given in DCGAN paper)
-LEARNING_RATE = 0.0002 
-BATCH_SIZE = 128 # mini-batch SGD
-IMAGE_SIZE = 64
-CHANNELS_IMG = 3 # for RGB
-NOISE_DIM = 100
-NUM_EPOCHS = 5
-FEATURES_DISC = 64
-FEATURES_GEN = 64
+    # defining hyperparameters (as given in DCGAN paper)
+    LEARNING_RATE = 0.0002 
+    BATCH_SIZE = 128 # mini-batch SGD
+    IMAGE_SIZE = 64
+    CHANNELS_IMG = 3 # for RGB
+    NOISE_DIM = 100
+    NUM_EPOCHS = 10
+    FEATURES_DISC = 64
+    FEATURES_GEN = 64
 
-# pre-processing images, creates a pipeline for transforming images using dataloading step
-transforms = transforms.Compose(
-    [
-        transforms.Resize(IMAGE_SIZE),
-        transforms.ToTensor(), # converts image to pytorch tensor
-        # sets mean and std for each channel to 0.5
-        transforms.Normalize(
-            [0.5 for _ in range(CHANNELS_IMG)], [0.5 for _ in range(CHANNELS_IMG)]
-        ),
-    ]
-)
+    # number of workers for dataloader
+    workers = 2
+    # Beta1 hyperparameter for Adam optimizers
+    beta1 = 0.5
+    # Number of GPUs available. Use 0 for CPU mode.
+    ngpu = 1
 
-os.makedirs("results", exist_ok=True)
-os.makedirs("logs", exist_ok=True)
-os.makedirs("trained_models", exist_ok=True)
+    # for displaying the image
+    def save_image(tensor, file_path):
+        tensor = tensor.cpu().detach()
 
-# for displaying the image
-def save_image(tensor, file_path):
-    # Ensure the tensor is on the CPU and detached from gradients
-    tensor = tensor.cpu().detach()
+        # Normalize and convert to numpy
+        tensor = tensor / 2 + 0.5  # Unnormalize
+        npimg = tensor.numpy()
 
-    # Normalize and convert to numpy
-    tensor = tensor / 2 + 0.5  # Unnormalize
-    npimg = tensor.numpy()
+        # Check tensor dimensions
+        if len(npimg.shape) == 3:  # If it’s a single image, transpose as (H, W, C)
+            npimg = np.transpose(npimg, (1, 2, 0))
+        elif len(npimg.shape) == 4:  # If it's a batch, create a grid
+            npimg = torchvision.utils.make_grid(tensor, normalize=True).numpy()
+            npimg = np.transpose(npimg, (1, 2, 0))
 
-    # Check tensor dimensions
-    if len(npimg.shape) == 3:  # If it’s a single image, transpose as (H, W, C)
-        npimg = np.transpose(npimg, (1, 2, 0))
-    elif len(npimg.shape) == 4:  # If it's a batch, create a grid
-        npimg = torchvision.utils.make_grid(tensor, normalize=True).numpy()
-        npimg = np.transpose(npimg, (1, 2, 0))
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-    # Create directory if it doesn't exist
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        # Save image
+        plt.imsave(file_path, npimg)
 
-    # Save image
-    plt.imsave(file_path, npimg)
+    # pre-processing images, creates a pipeline for transforming images using dataloading step
+    # taking dataset from local directory
+    dataset_train = dset.ImageFolder(root="./dataset/celeba_train",transform=transforms.Compose([
+                                transforms.Resize(IMAGE_SIZE),
+                                transforms.CenterCrop(IMAGE_SIZE),
+                                transforms.ToTensor(),
+                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                            ]))
+    
+    dataset_val = dset.ImageFolder(root="./dataset/celeba_val",transform=transforms.Compose([
+                                transforms.Resize(IMAGE_SIZE),
+                                transforms.CenterCrop(IMAGE_SIZE),
+                                transforms.ToTensor(),
+                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                            ]))
+    dataset_test = dset.ImageFolder(root="./dataset/celeba_test",transform=transforms.Compose([
+                                transforms.Resize(IMAGE_SIZE),
+                                transforms.CenterCrop(IMAGE_SIZE),
+                                transforms.ToTensor(),
+                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                            ]))
 
+    # making directory for saving results
+    os.makedirs("results", exist_ok=True)
+    os.makedirs("logs", exist_ok=True)
+    os.makedirs("trained_models", exist_ok=True)
 
-# taking dataset from loacal directory
-dataset_train = datasets.ImageFolder(root="./dataset/", transform=transforms)
-dataset_val = datasets.ImageFolder(root="./dataset/", transform=transforms)
-dataset_test = datasets.ImageFolder(root="./dataset/", transform=transforms)
+    
+    # create the dataloader
+    dataloader = torch.utils.data.DataLoader(dataset_train, batch_size=BATCH_SIZE,shuffle=True, num_workers=workers)
+    dataloader_val = torch.utils.data.DataLoader(dataset_val, batch_size=BATCH_SIZE,shuffle=True, num_workers=workers)
+    dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=BATCH_SIZE,shuffle=True, num_workers=workers)
+    
+    # selecting the device
+    device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
 
-dataloader_train = DataLoader(dataset_train, batch_size=BATCH_SIZE, shuffle=True)
-dataloader_val = DataLoader(dataset_val, batch_size=BATCH_SIZE, shuffle=True)
-dataloader_test = DataLoader(dataset_test, batch_size=BATCH_SIZE, shuffle=True)
+    # create the generator
+    netG = Generator(ngpu,NOISE_DIM,FEATURES_GEN,CHANNELS_IMG,).to(device)
 
-gen = Generator(NOISE_DIM, CHANNELS_IMG, FEATURES_GEN).to(device)
-disc = Discriminator(CHANNELS_IMG, FEATURES_DISC).to(device)
+    # handle multi-GPU if desired
+    if (device.type == 'cuda') and (ngpu > 1):
+        netG = nn.DataParallel(netG, list(range(ngpu)))
 
-# initialize weights for both generator and discriminator
-initialize_weights(gen)
-initialize_weights(disc)
+    # initialize weights
+    netG.apply(weights_init)
 
-# using Adam optimizer as per DCGAN paper
-opt_gen = optim.Adam(gen.parameters(), lr=LEARNING_RATE, betas=(0.5, 0.999))
-opt_disc = optim.Adam(disc.parameters(), lr=LEARNING_RATE, betas=(0.5, 0.999))
+    # Create the Discriminator
+    netD = Discriminator(ngpu,FEATURES_DISC,CHANNELS_IMG).to(device)
 
-# setting the loss function as binary cross entropy loss
-criterion = nn.BCELoss()
+    # handle multi-GPU if desired
+    if (device.type == 'cuda') and (ngpu > 1):
+        netD = nn.DataParallel(netD, list(range(ngpu)))
 
-fixed_noise = torch.randn(32, NOISE_DIM, 1, 1).to(device)
+    # initialize all weights
+    netD.apply(weights_init)
 
-# for logging real and fake images during training using tensorboard
-writer_real = SummaryWriter(f"logs/real")
-writer_fake = SummaryWriter(f"logs/fake")
-step = 0
+    # Initialize the loss (binary cross entropy) function
+    criterion = nn.BCELoss()
 
-gen.train()
-disc.train()
+    # create batch of latent vectors that we will use to visualize the progression of the generator
+    fixed_noise = torch.randn(64, NOISE_DIM, 1, 1, device=device)
 
-for epoch in range(NUM_EPOCHS*2):
-    # for each epoch, it iterates on every batch one by one
-    for batch_idx, (real, _) in enumerate(dataloader_train):
-        real = real.to(device)
-        noise = torch.randn(BATCH_SIZE, NOISE_DIM, 1, 1).to(device)
-        fake = gen(noise)
+    # putting real as 1 and fake as 0
+    real_label = 1.
+    fake_label = 0.
 
-        # training discriminator involves maximizing the objective function log(D(x)) + log(1 - D(G(z)))
-        disc_real = disc(real).reshape(-1)
-        loss_disc_real = criterion(disc_real, torch.ones_like(disc_real))
-        disc_fake = disc(fake.detach()).reshape(-1)
-        loss_disc_fake = criterion(disc_fake, torch.zeros_like(disc_fake))
-        loss_disc = (loss_disc_real + loss_disc_fake) / 2 # taking average loss
-        disc.zero_grad()
-        loss_disc.backward()
-        opt_disc.step()
+    # Setup Adam optimizers for both G and D
+    optimizerD = optim.Adam(netD.parameters(), lr=LEARNING_RATE, betas=(beta1, 0.999))
+    optimizerG = optim.Adam(netG.parameters(), lr=LEARNING_RATE, betas=(beta1, 0.999))
 
-        ## training generator involves minimizing log(1 - D(G(z))) which is equivalent to maximizing log(D(G(z))
-        output = disc(fake).reshape(-1)
-        loss_gen = criterion(output, torch.ones_like(output))
-        gen.zero_grad()
-        loss_gen.backward()
-        opt_gen.step()
+    # Lists to keep track of progress
+    img_list = []
+    G_losses = []
+    D_losses = []
+    iters = 0
 
-        # Print losses occasionally and print to tensorboard
-        print(
-            f"Epoch: [{epoch}/{NUM_EPOCHS*2}] Loss D: {loss_disc:.4f}, loss G: {loss_gen:.4f}"
-        )
+    print("Starting Training Loop...")
+    # For each epoch
+    for epoch in range(NUM_EPOCHS):
+        # For each batch in the dataloader
+        for i, data in enumerate(dataloader, 0):
 
-        with torch.no_grad():
-            # at every step for fixed noise, check how the images produced by generator improves over time
-            fake = gen(fixed_noise).cpu()
-            save_image(fake, f"results/img_{epoch}.png")
+            # training discriminator involves maximizing the objective function log(D(x)) + log(1 - D(G(z)))
+            # Train with all-real batch
+            netD.zero_grad()
+            # Format batch
+            real_cpu = data[0].to(device)
+            b_size = real_cpu.size(0)
+            label = torch.full((b_size,), real_label, dtype=torch.float, device=device)
+            # Forward pass real batch through D
+            output = netD(real_cpu).view(-1)
+            # Calculate loss on all-real batch
+            errD_real = criterion(output, label)
+            # Calculate gradients for D in backward pass
+            errD_real.backward()
+            D_x = output.mean().item()
 
-            # take out (up to) 32 examples
-            img_grid_real = torchvision.utils.make_grid(real[:32].cpu(), normalize=True)
-            img_grid_fake = torchvision.utils.make_grid(fake[:32].cpu(), normalize=True)
-            
-            save_image(img_grid_fake, f"results/img_grid_fake_{epoch}.png")
+            # Train with all-fake batch
+            # Generate batch of latent vectors
+            noise = torch.randn(b_size, NOISE_DIM, 1, 1, device=device)
+            # Generate fake image batch with G
+            fake = netG(noise)
+            label.fill_(fake_label)
+            # Classify all fake batch with D
+            output = netD(fake.detach()).view(-1)
+            # Calculate D's loss on the all-fake batch
+            errD_fake = criterion(output, label)
+            # Calculate the gradients for this batch, accumulated (summed) with previous gradients
+            errD_fake.backward()
+            D_G_z1 = output.mean().item()
+            # Compute error of D as sum over the fake and the real batches
+            errD = errD_real + errD_fake
+            # Update D
+            optimizerD.step()
 
-            writer_real.add_image("Real", img_grid_real, global_step=step)
-            writer_fake.add_image("Fake", img_grid_fake, global_step=step)
+            # training generator involves minimizing log(1 - D(G(z))) which is equivalent to maximizing log(D(G(z))
+            netG.zero_grad()
+            label.fill_(real_label)  # fake labels are real for generator cost
+            # Since we just updated D, perform another forward pass of all-fake batch through D
+            output = netD(fake).view(-1)
+            # Calculate G's loss based on this output
+            errG = criterion(output, label)
+            # Calculate gradients for G
+            errG.backward()
+            D_G_z2 = output.mean().item()
+            # Update G
+            optimizerG.step()
 
-            step += 1
+            # Output training stats
+            if i % 50 == 0:
+                print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
+                    % (epoch, NUM_EPOCHS, i, len(dataloader),
+                        errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
 
-print('--------Finshed Training GAN--------')
+            # Save Losses for plotting later
+            G_losses.append(errG.item())
+            D_losses.append(errD.item())
 
-############################################################################################
+            # Check how the generator is doing by saving G's output on fixed_noise
+            if (iters % 500 == 0) or ((epoch == NUM_EPOCHS-1) and (i == len(dataloader)-1)):
+                with torch.no_grad():
+                    fake = netG(fixed_noise).detach().cpu()
+                img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
 
-# training the encoder for the given generator, for generating z vectors
-encoder = Encoder(CHANNELS_IMG, FEATURES_GEN, NOISE_DIM).to(device)
+            iters += 1
 
-# defining optimizer for encoder cnn
-opt_enc = optim.Adam(encoder.parameters())
-criterion_enc = nn.MSELoss()
+    print('--------Finshed Training GAN--------')
+    ############################################################################################
 
-# defining best parameters for encoder
-best_loss = float('inf')
-best_lr = None
-best_beta1 = None
+    # training the encoder for the given generator, for generating z vectors
+    encoder = Encoder(CHANNELS_IMG, FEATURES_GEN, NOISE_DIM).to(device)
 
-# trying on different learning rates and beta1_values
-LEARNING_RATES = [0.0001, 0.0002, 0.0005]
-BETA1_VALUES = [0.5, 0.9]
+    # defining optimizer for encoder cnn
+    opt_enc = optim.Adam(encoder.parameters())
+    criterion_enc = nn.MSELoss()
 
-for lr in LEARNING_RATES:
-    for beta1 in BETA1_VALUES:
-        optimizer = optim.Adam(encoder.parameters(),lr=lr,betas=(beta1,0.999))
+    # defining best parameters for encoder
+    best_loss = float('inf')
+    best_lr = None
+    best_beta1 = None
 
-        for epoch in range(NUM_EPOCHS):
-            encoder.train()
-            total_loss = 0
+    # trying on different learning rates and beta1_values
+    LEARNING_RATES = [0.0001, 0.0002, 0.0005]
+    BETA1_VALUES = [0.5, 0.9]
 
-            for batch_idx, (real, _) in enumerate(dataloader_train):
-                real = real.to(device)
-                optimizer.zero_grad()
+    for lr in LEARNING_RATES:
+        for beta1 in BETA1_VALUES:
+            optimizer = optim.Adam(encoder.parameters(),lr=lr,betas=(beta1,0.999))
 
-                # Generate fake images using fixed trained generator
-                noise = torch.randn(real.shape[0], NOISE_DIM, 1, 1).to(device)
-                fake = gen(noise)
+            for epoch in range(NUM_EPOCHS):
+                encoder.train()
+                total_loss = 0
 
-                # Encode fake images
-                encoded_fake = encoder(fake)
-
-                # Compute reconstruction loss, mse between input image feed to encoder and output image given by the gan generator
-                loss = criterion(encoded_fake, noise.view(noise.size(0), -1))
-                total_loss += loss.item()
-
-                # Backpropagation
-                loss.backward()
-                optimizer.step()
-
-            avg_loss = total_loss / len(dataloader_train)
-            print(f"Epoch [{epoch+1}/{NUM_EPOCHS}], LR: {lr}, Beta1: {beta1}, Avg Loss: {avg_loss}")
-
-            # Validation
-            encoder.eval()
-            val_loss = 0
-
-            with torch.no_grad():
-                for batch_idx, (real, _) in enumerate(dataloader_val):
+                for batch_idx, (real, _) in enumerate(dataloader):
                     real = real.to(device)
+                    optimizer.zero_grad()
+
+                    # Generate fake images using fixed trained generator
                     noise = torch.randn(real.shape[0], NOISE_DIM, 1, 1).to(device)
-                    fake = gen(noise)
+                    fake = netG(noise)
+
+                    # Encode fake images
                     encoded_fake = encoder(fake)
-                    val_loss += criterion(encoded_fake, noise.view(noise.size(0), -1)).item()
 
-            avg_val_loss = val_loss / len(dataloader_val)
-            print(f"Validation Loss: {avg_val_loss}")
+                    # Compute reconstruction loss, mse between input image feed to encoder and output image given by the gan generator
+                    loss = criterion(encoded_fake, noise.view(noise.size(0), -1))
+                    total_loss += loss.item()
 
-            # Save best hyperparameters
-            if avg_val_loss < best_loss:
-                best_loss = avg_val_loss
-                best_lr = lr
-                best_beta1 = beta1
+                    # Backpropagation
+                    loss.backward()
+                    optimizer.step()
 
-print(f"Best LR: {best_lr}, Best Beta1: {best_beta1}, Best Validation Loss: {best_loss}")
-print('--------Finshed Training Encoder--------')
+                avg_loss = total_loss / len(dataloader)
+                print(f"Epoch [{epoch+1}/{NUM_EPOCHS}], LR: {lr}, Beta1: {beta1}, Avg Loss: {avg_loss}")
 
-############################################################################################
+                # Validation
+                encoder.eval()
+                val_loss = 0
 
-# saving trained models
-torch.save(gen.state_dict(),"./trained_models/generator.pth")
-torch.save(encoder.state_dict(),"./trained_models/encoder.pth")
+                with torch.no_grad():
+                    for batch_idx, (real, _) in enumerate(dataloader_val):
+                        real = real.to(device)
+                        noise = torch.randn(real.shape[0], NOISE_DIM, 1, 1).to(device)
+                        fake = netG(noise)
+                        encoded_fake = encoder(fake)
+                        val_loss += criterion(encoded_fake, noise.view(noise.size(0), -1)).item()
+
+                avg_val_loss = val_loss / len(dataloader_val)
+                print(f"Validation Loss: {avg_val_loss}")
+
+                # Save best hyperparameters
+                if avg_val_loss < best_loss:
+                    best_loss = avg_val_loss
+                    best_lr = lr
+                    best_beta1 = beta1
+
+    print(f"Best LR: {best_lr}, Best Beta1: {best_beta1}, Best Validation Loss: {best_loss}")
+    print('--------Finshed Training Encoder--------')
+
+    ############################################################################################
+
+    # saving trained models
+    torch.save(netG.state_dict(),"./trained_models/generator.pth")   
+    torch.save(encoder.state_dict(),"./trained_models/encoder.pth")
+
+    # plt.figure(figsize=(10,5))
+    # plt.title("Generator and Discriminator Loss During Training")
+    # plt.plot(G_losses,label="G")
+    # plt.plot(D_losses,label="D")
+    # plt.xlabel("iterations")
+    # plt.ylabel("Loss")
+    # plt.legend()
+    # plt.show()
+
+if __name__ == '__main__':
+    multiprocessing.freeze_support()
+    main()
