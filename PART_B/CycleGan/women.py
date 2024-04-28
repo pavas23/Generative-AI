@@ -24,8 +24,7 @@ transform = transforms.Compose(
 
 batch_size = 32
 lr = 0.0002
-epochs = 10
-
+epochs = 75
 
 class Generator(nn.Module):
     def __init__(self, input_channels, output_channels):
@@ -148,7 +147,6 @@ women_with_glasses_loader = DataLoader(
     women_with_glasses_dataset, batch_size=batch_size, shuffle=True
 )
 
-
 class CycleGAN(nn.Module):
     def __init__(self, generator_A2B, generator_B2A, discriminator_A, discriminator_B):
         super(CycleGAN, self).__init__()
@@ -242,11 +240,11 @@ for epoch in range(epochs):
 sample_real_A = next(iter(men_no_glasses_loader))[:5]
 sample_fake_B = gen_A2B(sample_real_A)
 torchvision.utils.save_image(
-    sample_fake_B, "men_no_glasses_to_men_with_glasses.png", nrow=5, normalize=True
+    sample_fake_B, "men_to_women.png", nrow=5, normalize=True
 )
 
 sample_real_B = next(iter(men_with_glasses_loader))[:5]
 sample_fake_A = gen_B2A(sample_real_B)
 torchvision.utils.save_image(
-    sample_fake_A, "men_with_glasses_to_men_no_glasses.png", nrow=5, normalize=True
+    sample_fake_A, "women_to_men.png", nrow=5, normalize=True
 )
