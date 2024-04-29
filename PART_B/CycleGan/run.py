@@ -43,7 +43,7 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self, input_channels):
         super(Discriminator, self).__init__()
-        
+
         self.conv_layers = nn.Sequential(
             nn.Conv2d(input_channels, 64, 4, 2, 1, bias=False),
             nn.InstanceNorm2d(64),
@@ -59,11 +59,14 @@ class Discriminator(nn.Module):
             nn.LeakyReLU(0.2, inplace=True),
         )
         
-        self.final_conv = nn.Conv2d(512, 1, 4, 1, 1)
-
+        self.linear = nn.Linear(512*15*15,1000)
+        self.linear2 = nn.Linear(1000, 1)
 
     def forward(self, x):
-        return self.final_conv(self.conv_layers(x))
+        x = self.conv_layers(x)
+        x = self.linear(x.view(-1, 512*15*15))
+        x = self.linear2(x)
+        return torch.sigmoid(x)
 
 class CycleGAN(nn.Module):
     def __init__(
@@ -82,7 +85,7 @@ class CycleGAN(nn.Module):
         self.lambda_cycle = lambda_cycle
 
         # Define the loss functions
-        self.criterion_gan = nn.MSELoss()
+        self.criterion_gan = nn.BCELoss()
         self.criterion_cycle = nn.L1Loss()
 
     def forward(self, real_A, real_B):
@@ -101,8 +104,8 @@ class CycleGAN(nn.Module):
         disc_fake_B = self.disc_B(fake_B.detach())
 
         # Adversarial loss
-        loss_gan_A = self.criterion_gan(disc_fake_A, torch.ones_like(disc_fake_A))
-        loss_gan_B = self.criterion_gan(disc_fake_B, torch.ones_like(disc_fake_B))
+        loss_gan_A = self.criterion_gan(disc_fake_A, torch.zeros_like(disc_fake_A))
+        loss_gan_B = self.criterion_gan(disc_fake_B, torch.zeros_like(disc_fake_B))
 
         # Cycle consistency loss
         loss_cycle_A = self.criterion_cycle(cycle_A, real_A)
@@ -114,17 +117,17 @@ class CycleGAN(nn.Module):
         )
         loss_D_A = self.criterion_gan(
             disc_real_A, torch.ones_like(disc_real_A)
-        ) + self.criterion_gan(disc_fake_A, torch.zeros_like(disc_fake_A))
+        ) 
         loss_D_B = self.criterion_gan(
             disc_real_B, torch.ones_like(disc_real_B)
-        ) + self.criterion_gan(disc_fake_B, torch.zeros_like(disc_fake_B))
+        )
 
         return loss_G, loss_D_A, loss_D_B
 
 
 # Training Loop
 def train_cyclegan(dataloader_A, dataloader_B, num_epochs, men):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
 
     # Initialize the generator and discriminator models
     gen_A2B = Generator(3, 3).to(device)
@@ -155,13 +158,13 @@ def train_cyclegan(dataloader_A, dataloader_B, num_epochs, men):
             optimizer_D_B.zero_grad()
             _, loss_D_A, loss_D_B = cyclegan(real_A, real_B)
             loss_D = loss_D_A + loss_D_B
-            loss_D.backward()
+            loss_D.backward(retain_graph=True)
             optimizer_D_A.step()
             optimizer_D_B.step()
 
             optimizer_G.zero_grad()
             loss_G, _, _ = cyclegan(real_A, real_B)
-            loss_G.backward()
+            loss_G.backward(retain_graph=True)
             optimizer_G.step()
 
         print(
@@ -181,10 +184,10 @@ def train_cyclegan(dataloader_A, dataloader_B, num_epochs, men):
 
 # Training
 
-train_cyclegan(men_no_glasses_loader, men_with_glasses_loader, num_epochs=150, men=True)
+train_cyclegan(men_no_glasses_loader, men_with_glasses_loader, num_epochs=20, men=True)
 
 print(f"Training of men completed!")
 
-train_cyclegan(men_with_glasses_loader, women_with_glasses_loader, num_epochs=150, men=False)
+train_cyclegan(men_with_glasses_loader, women_with_glasses_loader, num_epochs=20, men=False)
 
 print(f"Training of women completed!")
