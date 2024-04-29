@@ -1,9 +1,9 @@
-import torch.nn as nn
 import torch
+import torch.nn as nn
 import math
-from unet import Unet
 from tqdm import tqdm
 
+from unet import Unet
 
 class MNISTDiffusion(nn.Module):
     def __init__(
@@ -20,11 +20,14 @@ class MNISTDiffusion(nn.Module):
         self.in_channels = in_channels
         self.image_size = image_size
 
+        # Define the variance schedule (beta schedule)
         betas = self._cosine_variance_schedule(timesteps)
 
+        # Compute alphas and their cumulative products
         alphas = 1.0 - betas
         alphas_cumprod = torch.cumprod(alphas, dim=-1)
 
+        # Register the schedule and related values as buffers
         self.register_buffer("betas", betas)
         self.register_buffer("alphas", alphas)
         self.register_buffer("alphas_cumprod", alphas_cumprod)
@@ -33,11 +36,13 @@ class MNISTDiffusion(nn.Module):
             "sqrt_one_minus_alphas_cumprod", torch.sqrt(1.0 - alphas_cumprod)
         )
 
+        # Initialize the U-Net model
         self.model = Unet(
             timesteps, time_embedding_dim, in_channels, in_channels, base_dim, dim_mults
         )
 
     def forward(self, x, noise):
+        # Sample a random timestep for each image
         t = torch.randint(0, self.timesteps, (x.shape[0],)).to(x.device)
         x_t = self._forward_diffusion(x, t, noise)
         pred_noise = self.model(x_t, t)
@@ -46,9 +51,12 @@ class MNISTDiffusion(nn.Module):
 
     @torch.inference_mode()
     def sampling(self, n_samples, clipped_reverse_diffusion=True, device="cuda"):
+        # Initialize the latent with random noise
         x_t = torch.randn(
             (n_samples, self.in_channels, self.image_size, self.image_size)
         ).to(device)
+
+        # Iteratively apply the reverse diffusion process
         for i in tqdm(range(self.timesteps - 1, -1, -1), desc="Sampling"):
             noise = torch.randn_like(x_t).to(device)
             t = torch.tensor([i for _ in range(n_samples)]).to(device)
@@ -58,11 +66,15 @@ class MNISTDiffusion(nn.Module):
             else:
                 x_t = self._reverse_diffusion(x_t, t, noise)
 
-        x_t = (x_t + 1.0) / 2.0  # [-1,1] to [0,1]
+        # Normalize the output to [0, 1] range
+        x_t = (x_t + 1.0) / 2.0
 
         return x_t
 
     def _cosine_variance_schedule(self, timesteps, epsilon=0.008):
+        """
+        Computes the cosine variance schedule for the diffusion process.
+        """
         steps = torch.linspace(0, timesteps, steps=timesteps + 1, dtype=torch.float32)
         f_t = (
             torch.cos(((steps / timesteps + epsilon) / (1.0 + epsilon)) * math.pi * 0.5)
@@ -73,6 +85,9 @@ class MNISTDiffusion(nn.Module):
         return betas
 
     def _forward_diffusion(self, x_0, t, noise):
+        """
+        Applies the forward diffusion process to the input image.
+        """
         assert x_0.shape == noise.shape
         # q(x_{t}|x_{t-1})
         return (
@@ -85,6 +100,9 @@ class MNISTDiffusion(nn.Module):
 
     @torch.inference_mode()
     def _reverse_diffusion(self, x_t, t, noise):
+        """
+        Applies the reverse diffusion process to the latent.
+        """
         pred = self.model(x_t, t)
 
         alpha_t = self.alphas.gather(-1, t).reshape(x_t.shape[0], 1, 1, 1)
