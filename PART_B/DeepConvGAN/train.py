@@ -12,8 +12,6 @@ import torchvision.transforms as transforms
 import torchvision.utils as vutils
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from IPython.display import HTML
 import multiprocessing
 from model import Discriminator, Generator, Encoder, weights_init
 
@@ -30,7 +28,7 @@ def main():
     IMAGE_SIZE = 64
     CHANNELS_IMG = 3 # for RGB
     NOISE_DIM = 100
-    NUM_EPOCHS = 10
+    NUM_EPOCHS = 20
     FEATURES_DISC = 64
     FEATURES_GEN = 64
 
@@ -64,20 +62,20 @@ def main():
 
     # pre-processing images, creates a pipeline for transforming images using dataloading step
     # taking dataset from local directory
-    dataset_train = dset.ImageFolder(root="./dataset/celeba_train",transform=transforms.Compose([
+    dataset_train = dset.ImageFolder(root="./dataset",transform=transforms.Compose([
                                 transforms.Resize(IMAGE_SIZE),
                                 transforms.CenterCrop(IMAGE_SIZE),
                                 transforms.ToTensor(),
                                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                             ]))
     
-    dataset_val = dset.ImageFolder(root="./dataset/celeba_val",transform=transforms.Compose([
+    dataset_val = dset.ImageFolder(root="./dataset",transform=transforms.Compose([
                                 transforms.Resize(IMAGE_SIZE),
                                 transforms.CenterCrop(IMAGE_SIZE),
                                 transforms.ToTensor(),
                                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                             ]))
-    dataset_test = dset.ImageFolder(root="./dataset/celeba_test",transform=transforms.Compose([
+    dataset_test = dset.ImageFolder(root="./dataset",transform=transforms.Compose([
                                 transforms.Resize(IMAGE_SIZE),
                                 transforms.CenterCrop(IMAGE_SIZE),
                                 transforms.ToTensor(),
@@ -133,9 +131,6 @@ def main():
     optimizerG = optim.Adam(netG.parameters(), lr=LEARNING_RATE, betas=(beta1, 0.999))
 
     # Lists to keep track of progress
-    img_list = []
-    G_losses = []
-    D_losses = []
     iters = 0
 
     print("Starting Training Loop...")
@@ -196,15 +191,12 @@ def main():
                     % (epoch, NUM_EPOCHS, i, len(dataloader),
                         errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
 
-            # Save Losses for plotting later
-            G_losses.append(errG.item())
-            D_losses.append(errD.item())
 
             # Check how the generator is doing by saving G's output on fixed_noise
             if (iters % 500 == 0) or ((epoch == NUM_EPOCHS-1) and (i == len(dataloader)-1)):
                 with torch.no_grad():
                     fake = netG(fixed_noise).detach().cpu()
-                img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
+                save_image(vutils.make_grid(fake, padding=2, normalize=True), f"results/fake_samples_epoch_{epoch}_iter_{iters}.png")
 
             iters += 1
 
@@ -262,7 +254,7 @@ def main():
                 val_loss = 0
 
                 with torch.no_grad():
-                    for batch_idx, (real, _) in enumerate(dataloader_val):
+                    for _, (real, _) in enumerate(dataloader_val):
                         real = real.to(device)
                         noise = torch.randn(real.shape[0], NOISE_DIM, 1, 1).to(device)
                         fake = netG(noise)

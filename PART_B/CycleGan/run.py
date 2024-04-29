@@ -127,7 +127,7 @@ class CycleGAN(nn.Module):
 
 # Training Loop
 def train_cyclegan(dataloader_A, dataloader_B, num_epochs, men):
-    device = torch.device("cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Initialize the generator and discriminator models
     gen_A2B = Generator(3, 3).to(device)
