@@ -19,10 +19,11 @@ for line in data:
 for epoch, losses in epoch_losses.items():
     average_loss = sum(losses) / len(losses)
     
-    
-# plot average loss for each epoch from the dictionary 
 
-plt.plot(list(epoch_losses.keys()), list(epoch_losses.values()))
+# Plotting
+
+plt.plot(list(epoch_losses.keys()), [sum(losses) / len(losses) for losses in epoch_losses.values()])
 plt.xlabel("Epoch")
 plt.ylabel("Average Loss")
-plt.savefig("loss_plot.png")
+plt.title("Average Loss vs Epoch")
+plt.savefig("loss.png")
