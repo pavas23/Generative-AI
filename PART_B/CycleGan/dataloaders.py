@@ -64,6 +64,8 @@ women_with_glasses_dataset = CelebADataset(
 
 # Dataloaders
 
+print(f"{men_no_glasses_dataset.__getitem__(0).shape}")
+
 men_no_glasses_loader = DataLoader(
     men_no_glasses_dataset, batch_size=batch_size, shuffle=True
 )
