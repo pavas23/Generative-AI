@@ -53,21 +53,21 @@ def main():
     optimizer = optim.Adam(encoder.parameters(), lr=0.0002, betas=(0.5, 0.999))
     print("Starting Training Loop...")
     for epoch in range(10):
-        # encoder.train()
-        # total_loss = 0
+        encoder.train()
+        total_loss = 0
 
-        # for batch_idx, (real, _) in enumerate(dataloader):
-        #     real = real.to(device)
-        #     noise = encoder(real).view(-1, 100, 1, 1)
-        #     fake = netG(noise)
-        #     loss = criterion(real, fake)
-        #     total_loss += loss.item()
+        for _, (real, _) in enumerate(dataloader):
+            real = real.to(device)
+            noise = encoder(real).view(-1, 100, 1, 1)
+            fake = netG(noise)
+            loss = criterion(real, fake)
+            total_loss += loss.item()
 
-        #     optimizer.zero_grad()
-        #     loss.backward()
-        #     optimizer.step()
-        #     avg_loss = total_loss / len(dataloader)
-        #     print(f"Epoch [{epoch+1}/{20}] Loss: {avg_loss}")
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            avg_loss = total_loss / len(dataloader)
+            print(f"Epoch [{epoch+1}/{20}] Loss: {avg_loss}")
 
         encoder.eval()
         val_loss = 0

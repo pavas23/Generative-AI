@@ -3,6 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
+import os
+
+os.makedirs("chkpts", exist_ok=True)
 
 # MNIST Dataset
 train_dataset = datasets.MNIST(
@@ -85,8 +88,6 @@ for latent_size in latent_sizes:
             train_loss += loss.item()
             optimizer.step()
         
-        print(f"Epoch: {epoch}, Loss: {train_loss / len(train_loader.dataset)}")
-        
     checkpoint_path = f"chkpts/vae_{latent_size}.pt"
     torch.save(vae.state_dict(), checkpoint_path)
         
@@ -100,6 +101,7 @@ for latent_size in latent_sizes:
         for data, _ in test_loader:
             data = data.cuda()
             recon_batch, mu, log_var = vae(data)
+            print(f"Mean: {mu.mean().item()}, Log Var: {log_var.mean().item()}")
             test_loss += criterion(recon_batch.view(-1,784), data.view(-1,784)).item()
             num_smpls+=len(data)
     mse = test_loss / num_smpls

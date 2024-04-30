@@ -10,14 +10,13 @@ import matplotlib.pyplot as plt
 from model import Discriminator, Generator
 
 def main():
-    # set random seed for reproducibility, so that when everytime code is run, same results are produced
     manualSeed = 69
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
     torch.use_deterministic_algorithms(True)
 
     dataset_train = dset.ImageFolder(
-        root="../T/dataset",
+        root="./dataset",
         transform=transforms.Compose(
             [
                 transforms.Resize(64),
@@ -28,7 +27,7 @@ def main():
     )
 
     dataset_val = dset.ImageFolder(
-        root="../T/dataset",
+        root="./dataset",
         transform=transforms.Compose(
             [
                 transforms.Resize(64),
