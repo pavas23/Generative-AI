@@ -108,7 +108,7 @@ def main():
                     
                     # save fake as an image in a folder, along with noise in a grid
                     vutils.save_image(fake.detach(), f"results/fake_{epoch}_{batch_idx}.png", normalize=True)
-                    vutils.save_image(noise.detach(), f"results/noise_{epoch}_{batch_idx}.png", normalize=True)
+                    # vutils.save_image(noise.detach(), f"results/noise_{epoch}_{batch_idx}.png", normalize=True)
 
                     # Encode fake images
                     encoded_fake = encoder(fake)
