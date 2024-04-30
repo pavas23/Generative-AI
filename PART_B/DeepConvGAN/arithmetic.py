@@ -11,7 +11,8 @@ from split_dataset import (
     men_with_glasses,
     women_no_glasses,
     men_with_smile,
-    people_with_hat,
+    people_with_hat_1,
+    people_with_hat_2,
     people_no_hat,
     people_with_mus,
     people_no_mus,
@@ -131,15 +132,15 @@ def main():
     operations_men_with_hat_smile_mustache = {
         "inside": lambda i: (
             encoder(men_with_smile[i])
-            + encoder(people_with_hat[i])
-            - encoder(people_no_hat[i])
+            + encoder(people_with_hat_1[i])
+            - encoder(people_with_hat_2[i])
             + encoder(people_with_mus[i])
             - encoder(people_no_mus[i])
         ),
         "outside": lambda i: (
             men_with_smile[i]
-            + people_with_hat[i]
-            - people_no_hat[i]
+            + people_with_hat_1[i]
+            - people_with_hat_2[i]
             + people_with_mus[i]
             - people_no_mus[i]
         ),
@@ -149,8 +150,8 @@ def main():
         "inputs": [
             [
                 men_with_smile[i],
-                people_with_hat[i],
-                people_no_hat[i],
+                people_with_hat_1[i],
+                people_with_hat_2[i],
                 people_with_mus[i],
                 people_no_mus[i],
             ]
