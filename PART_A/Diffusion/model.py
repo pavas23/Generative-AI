@@ -1,177 +1,42 @@
 import torch
 import torch.nn as nn
-import math
-from tqdm import tqdm
+import pytorch_lightning as pl
+from torch.utils.data import DataLoader
+from torchvision.datasets import MNIST
+from torchvision import transforms
+from unet import UNet
 
-from unet import Unet
-
-class MNISTDiffusion(nn.Module):
-    def __init__(
-        self,
-        image_size,
-        in_channels,
-        time_embedding_dim=256,
-        timesteps=1000,
-        base_dim=32,
-        dim_mults=[1, 2, 4, 8],
-    ):
+class DiffusionModel(pl.LightningModule):
+    def __init__(self):
         super().__init__()
-        self.timesteps = timesteps
-        self.in_channels = in_channels
-        self.image_size = image_size
+        self.unet = UNet(1, 1)
+        self.loss_fn = nn.MSELoss()
+        self.num_timesteps = 1000
+        self.betas = torch.linspace(-20, 20, self.num_timesteps)
 
-        # Define the variance schedule (beta schedule)
-        betas = self._cosine_variance_schedule(timesteps)
+    def forward(self, x, t):
+        noise = torch.randn_like(x)
+        alpha = torch.cos(self.betas[t]).pow(2)
+        alpha_bar = torch.sin(self.betas[t]).pow(2)
+        x_noisy = (x * torch.sqrt(alpha)) + (noise * torch.sqrt(alpha_bar))
 
-        # Compute alphas and their cumulative products
-        alphas = 1.0 - betas
-        alphas_cumprod = torch.cumprod(alphas, dim=-1)
+        output = self.unet(x_noisy)
 
-        # Register the schedule and related values as buffers
-        self.register_buffer("betas", betas)
-        self.register_buffer("alphas", alphas)
-        self.register_buffer("alphas_cumprod", alphas_cumprod)
-        self.register_buffer("sqrt_alphas_cumprod", torch.sqrt(alphas_cumprod))
-        self.register_buffer(
-            "sqrt_one_minus_alphas_cumprod", torch.sqrt(1.0 - alphas_cumprod)
+        return output
+
+    def training_step(self, batch, batch_idx):
+        images, _ = batch
+        t = torch.randint(0, self.num_timesteps, (images.size(0),))
+        preds = self(images, t)
+        loss = self.loss_fn(preds, images)
+        self.log("train_loss", loss)
+        return loss
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=1e-3)
+
+    def train_dataloader(self):
+        dataset = MNIST(
+            "data", train=True, download=True, transform=transforms.ToTensor()
         )
-
-        # Initialize the U-Net model
-        self.model = Unet(
-            timesteps, time_embedding_dim, in_channels, in_channels, base_dim, dim_mults
-        )
-
-    def forward(self, x, noise):
-        # Sample a random timestep for each image
-        t = torch.randint(0, self.timesteps, (x.shape[0],)).to(x.device)
-        x_t = self._forward_diffusion(x, t, noise)
-        pred_noise = self.model(x_t, t)
-
-        return pred_noise
-
-    @torch.inference_mode()
-    def sampling(self, n_samples, clipped_reverse_diffusion=True, device="cuda"):
-        # Initialize the latent with random noise
-        x_t = torch.randn(
-            (n_samples, self.in_channels, self.image_size, self.image_size)
-        ).to(device)
-
-        # Iteratively apply the reverse diffusion process
-        for i in tqdm(range(self.timesteps - 1, -1, -1), desc="Sampling"):
-            noise = torch.randn_like(x_t).to(device)
-            t = torch.tensor([i for _ in range(n_samples)]).to(device)
-
-            if clipped_reverse_diffusion:
-                x_t = self._reverse_diffusion_with_clip(x_t, t, noise)
-            else:
-                x_t = self._reverse_diffusion(x_t, t, noise)
-
-        # Normalize the output to [0, 1] range
-        x_t = (x_t + 1.0) / 2.0
-
-        return x_t
-
-    def _cosine_variance_schedule(self, timesteps, epsilon=0.008):
-        """
-        Computes the cosine variance schedule for the diffusion process.
-        """
-        steps = torch.linspace(0, timesteps, steps=timesteps + 1, dtype=torch.float32)
-        f_t = (
-            torch.cos(((steps / timesteps + epsilon) / (1.0 + epsilon)) * math.pi * 0.5)
-            ** 2
-        )
-        betas = torch.clip(1.0 - f_t[1:] / f_t[:timesteps], 0.0, 0.999)
-
-        return betas
-
-    def _forward_diffusion(self, x_0, t, noise):
-        """
-        Applies the forward diffusion process to the input image.
-        """
-        assert x_0.shape == noise.shape
-        # q(x_{t}|x_{t-1})
-        return (
-            self.sqrt_alphas_cumprod.gather(-1, t).reshape(x_0.shape[0], 1, 1, 1) * x_0
-            + self.sqrt_one_minus_alphas_cumprod.gather(-1, t).reshape(
-                x_0.shape[0], 1, 1, 1
-            )
-            * noise
-        )
-
-    @torch.inference_mode()
-    def _reverse_diffusion(self, x_t, t, noise):
-        """
-        Applies the reverse diffusion process to the latent.
-        """
-        pred = self.model(x_t, t)
-
-        alpha_t = self.alphas.gather(-1, t).reshape(x_t.shape[0], 1, 1, 1)
-        alpha_t_cumprod = self.alphas_cumprod.gather(-1, t).reshape(
-            x_t.shape[0], 1, 1, 1
-        )
-        beta_t = self.betas.gather(-1, t).reshape(x_t.shape[0], 1, 1, 1)
-        sqrt_one_minus_alpha_cumprod_t = self.sqrt_one_minus_alphas_cumprod.gather(
-            -1, t
-        ).reshape(x_t.shape[0], 1, 1, 1)
-        mean = (1.0 / torch.sqrt(alpha_t)) * (
-            x_t - ((1.0 - alpha_t) / sqrt_one_minus_alpha_cumprod_t) * pred
-        )
-
-        if t.min() > 0:
-            alpha_t_cumprod_prev = self.alphas_cumprod.gather(-1, t - 1).reshape(
-                x_t.shape[0], 1, 1, 1
-            )
-            std = torch.sqrt(
-                beta_t * (1.0 - alpha_t_cumprod_prev) / (1.0 - alpha_t_cumprod)
-            )
-        else:
-            std = 0.0
-
-        return mean + std * noise
-
-    @torch.inference_mode()
-    def _reverse_diffusion_with_clip(self, x_t, t, noise):
-        pred = self.model(x_t, t)
-        alpha_t = self.alphas.gather(-1, t).reshape(x_t.shape[0], 1, 1, 1)
-        alpha_t_cumprod = self.alphas_cumprod.gather(-1, t).reshape(
-            x_t.shape[0], 1, 1, 1
-        )
-        beta_t = self.betas.gather(-1, t).reshape(x_t.shape[0], 1, 1, 1)
-
-        x_0_pred = (
-            torch.sqrt(1.0 / alpha_t_cumprod) * x_t
-            - torch.sqrt(1.0 / alpha_t_cumprod - 1.0) * pred
-        )
-        x_0_pred.clamp_(-1.0, 1.0)
-
-        if t.min() > 0:
-            alpha_t_cumprod_prev = self.alphas_cumprod.gather(-1, t - 1).reshape(
-                x_t.shape[0], 1, 1, 1
-            )
-            mean = (
-                beta_t * torch.sqrt(alpha_t_cumprod_prev) / (1.0 - alpha_t_cumprod)
-            ) * x_0_pred + (
-                (1.0 - alpha_t_cumprod_prev)
-                * torch.sqrt(alpha_t)
-                / (1.0 - alpha_t_cumprod)
-            ) * x_t
-
-            std = torch.sqrt(
-                beta_t * (1.0 - alpha_t_cumprod_prev) / (1.0 - alpha_t_cumprod)
-            )
-        else:
-            mean = (
-                beta_t / (1.0 - alpha_t_cumprod)
-            ) * x_0_pred  
-            std = 0.0
-
-        return mean + std * noise
-
-
-class ExponentialMovingAverage(torch.optim.swa_utils.AveragedModel):
-
-    def __init__(self, model, decay, device="cpu"):
-        def ema_avg(avg_model_param, model_param, num_averaged):
-            return decay * avg_model_param + (1 - decay) * model_param
-
-        super().__init__(model, device, ema_avg, use_buffers=True)
+        return DataLoader(dataset, batch_size=64, shuffle=True)
