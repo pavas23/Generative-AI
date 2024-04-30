@@ -12,10 +12,10 @@ import torchvision.transforms as transforms
 import torchvision.utils as vutils
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from IPython.display import HTML
 import multiprocessing
-from model import Discriminator, Generator, Encoder, weights_init
+from model import Discriminator, Generator, weights_init
+
+os.makedirs('saved_images', exist_ok=True)
 
 def main():
     # set random seed for reproducibility, so that when everytime code is run, same results are produced
@@ -199,12 +199,11 @@ def main():
             # Save Losses for plotting later
             G_losses.append(errG.item())
             D_losses.append(errD.item())
-
-            # Check how the generator is doing by saving G's output on fixed_noise
-            if (iters % 500 == 0) or ((epoch == NUM_EPOCHS-1) and (i == len(dataloader)-1)):
-                with torch.no_grad():
-                    fake = netG(fixed_noise).detach().cpu()
-                img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
+            
+            with torch.no_grad():
+                fake = netG(fixed_noise).detach().cpu()
+            img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
+            save_image(img_list[-1], f"saved_images/fake_samples_epoch_{epoch}.png")
 
             iters += 1
 
@@ -212,16 +211,6 @@ def main():
 
     # saving trained models
     torch.save(netG.state_dict(),"./trained_models/generator.pth")
-    ############################################################################################
-
-    # plt.figure(figsize=(10,5))
-    # plt.title("Generator and Discriminator Loss During Training")
-    # plt.plot(G_losses,label="G")
-    # plt.plot(D_losses,label="D")
-    # plt.xlabel("iterations")
-    # plt.ylabel("Loss")
-    # plt.legend()
-    # plt.show()
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()
