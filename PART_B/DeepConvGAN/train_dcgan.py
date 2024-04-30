@@ -209,83 +209,10 @@ def main():
             iters += 1
 
     print('--------Finshed Training GAN--------')
-    ############################################################################################
-
-    # training the encoder for the given generator, for generating z vectors
-    encoder = Encoder(CHANNELS_IMG, FEATURES_GEN, NOISE_DIM).to(device)
-
-    # defining optimizer for encoder cnn
-    opt_enc = optim.Adam(encoder.parameters())
-    criterion_enc = nn.MSELoss()
-
-    # defining best parameters for encoder
-    best_loss = float('inf')
-    best_lr = None
-    best_beta1 = None
-
-    # trying on different learning rates and beta1_values
-    LEARNING_RATES = [0.0001, 0.0002, 0.0005]
-    BETA1_VALUES = [0.5, 0.9]
-
-    for lr in LEARNING_RATES:
-        for beta1 in BETA1_VALUES:
-            optimizer = optim.Adam(encoder.parameters(),lr=lr,betas=(beta1,0.999))
-
-            for epoch in range(NUM_EPOCHS):
-                encoder.train()
-                total_loss = 0
-
-                for batch_idx, (real, _) in enumerate(dataloader):
-                    real = real.to(device)
-                    optimizer.zero_grad()
-
-                    # Generate fake images using fixed trained generator
-                    noise = torch.randn(real.shape[0], NOISE_DIM, 1, 1).to(device)
-                    fake = netG(noise)
-
-                    # Encode fake images
-                    encoded_fake = encoder(fake)
-
-                    # Compute reconstruction loss, mse between input image feed to encoder and output image given by the gan generator
-                    loss = criterion(encoded_fake, noise.view(noise.size(0), -1))
-                    total_loss += loss.item()
-
-                    # Backpropagation
-                    loss.backward()
-                    optimizer.step()
-
-                avg_loss = total_loss / len(dataloader)
-                print(f"Epoch [{epoch+1}/{NUM_EPOCHS}], LR: {lr}, Beta1: {beta1}, Avg Loss: {avg_loss}")
-
-                # Validation
-                encoder.eval()
-                val_loss = 0
-
-                with torch.no_grad():
-                    for batch_idx, (real, _) in enumerate(dataloader_val):
-                        real = real.to(device)
-                        noise = torch.randn(real.shape[0], NOISE_DIM, 1, 1).to(device)
-                        fake = netG(noise)
-                        encoded_fake = encoder(fake)
-                        val_loss += criterion(encoded_fake, noise.view(noise.size(0), -1)).item()
-
-                avg_val_loss = val_loss / len(dataloader_val)
-                print(f"Validation Loss: {avg_val_loss}")
-
-                # Save best hyperparameters
-                if avg_val_loss < best_loss:
-                    best_loss = avg_val_loss
-                    best_lr = lr
-                    best_beta1 = beta1
-
-    print(f"Best LR: {best_lr}, Best Beta1: {best_beta1}, Best Validation Loss: {best_loss}")
-    print('--------Finshed Training Encoder--------')
-
-    ############################################################################################
 
     # saving trained models
-    torch.save(netG.state_dict(),"./trained_models/generator.pth")   
-    torch.save(encoder.state_dict(),"./trained_models/encoder.pth")
+    torch.save(netG.state_dict(),"./trained_models/generator.pth")
+    ############################################################################################
 
     # plt.figure(figsize=(10,5))
     # plt.title("Generator and Discriminator Loss During Training")
