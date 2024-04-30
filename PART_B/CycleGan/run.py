@@ -127,7 +127,7 @@ class CycleGAN(nn.Module):
 
 # Training Loop
 def train_cyclegan(dataloader_A, dataloader_B, num_epochs, men):
-    device = torch.device("cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Initialize the generator and discriminator models
     gen_A2B = Generator(3, 3).to(device)
@@ -184,10 +184,8 @@ def train_cyclegan(dataloader_A, dataloader_B, num_epochs, men):
 
 # Training
 
-train_cyclegan(men_no_glasses_loader, men_with_glasses_loader, num_epochs=20, men=True)
-
-print(f"Training of men completed!")
-
-train_cyclegan(men_with_glasses_loader, women_with_glasses_loader, num_epochs=20, men=False)
-
-print(f"Training of women completed!")
+if __name__ == "__main__":
+    train_cyclegan(men_no_glasses_loader, men_with_glasses_loader, num_epochs=100, men=True)
+    print(f"Training of men completed!")
+    train_cyclegan(men_with_glasses_loader, women_with_glasses_loader, num_epochs=100, men=False)
+    print(f"Training of women completed!")
