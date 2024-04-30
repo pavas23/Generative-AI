@@ -18,7 +18,6 @@ def parse_losses(log_file):
     count = 0
 
     for line in lines:
-        # match = re.match(r"\[(\d+)/(\d+)\]\[(\d+)/(\d+)\]\s+Loss_D:\s+([\d.]+)\s+Loss_G:\s+([\d.]+).*", line)
         match = re.match(r"\[(\d+)/(\d+)\]\[(\d+)/(\d+)\]\s+Loss_D:\s+([\d.]+)\s+Loss_G:\s+([\d.]+)\s+D\(x\):\s+([\d.]+)\s+D\(G\(z\)\):\s+([\d.]+) / ([\d.]+)", line)
         if match:
             epoch = int(match.group(1))
