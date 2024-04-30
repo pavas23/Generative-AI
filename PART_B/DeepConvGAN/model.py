@@ -70,44 +70,7 @@ def weights_init(m):
         nn.init.normal_(m.weight.data, 1.0, 0.02)
         nn.init.constant_(m.bias.data, 0)
 
-# CNN Encoder model
-# class Encoder(nn.Module):
-#     def __init__(self, channels_img, features_gen, noise_dim):
-#         super(Encoder, self).__init__()
-
-#         self.encoder = nn.Sequential(
-#             # layer 1, input img: 64 * 64
-#             nn.Conv2d(channels_img, features_gen, kernel_size=4, stride=2, padding=1),
-#             nn.LeakyReLU(0.2),
-#             nn.BatchNorm2d(features_gen),
-#             # layer 2, input img: 32 * 32
-#             nn.Conv2d(features_gen, features_gen*2, kernel_size=4, stride=2, padding=1),
-#             nn.LeakyReLU(0.2),
-#             nn.BatchNorm2d(features_gen*2),
-#             # layer 3, input img: 16 * 16
-#             nn.Conv2d(features_gen*2, features_gen*4, kernel_size=4, stride=2, padding=1),
-#             nn.LeakyReLU(0.2),
-#             nn.BatchNorm2d(features_gen*4),
-#             # layer 4, input img: 8 * 8
-#             nn.Conv2d(features_gen*4, features_gen*8, kernel_size=4, stride=2, padding=1),
-#             nn.LeakyReLU(0.2),
-#             nn.BatchNorm2d(features_gen*8),
-#             # layer 5, input img: 4 * 4
-#             nn.Conv2d(features_gen*8, features_gen*16, kernel_size=4, stride=2, padding=1),
-#             nn.LeakyReLU(0.2),
-#             nn.BatchNorm2d(features_gen*16),
-#             # layer 6, input img: 2 * 2
-#             nn.Conv2d(features_gen*16, features_gen*32, kernel_size=4, stride=2, padding=1),
-#             nn.LeakyReLU(0.2),
-#             nn.BatchNorm2d(features_gen*32),
-#             # layer 7, noise of dim 1000
-#             nn.Conv2d(features_gen*32, noise_dim, kernel_size=2, stride=1, padding=0),  # Adjusted kernel size
-#             nn.Flatten()
-#         )
-
-#     def forward(self, x):
-#         return self.encoder(x)
-
+# CNN Encdor model
 class Encoder(nn.Module):
     def __init__(self, channels, features_gen, noise_dim):
         super(Encoder, self).__init__()

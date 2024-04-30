@@ -9,9 +9,7 @@ def parse_losses(log_file):
     gen_losses = []
     disc_losses = []
     
-
     for line in lines:
-        # match = re.match(r"\[(\d+)/(\d+)\]\[(\d+)/(\d+)\]\s+Loss_D:\s+([\d.]+)\s+Loss_G:\s+([\d.]+).*", line)
         match = re.match(r"Epoch \[(\d+)/(\d+)\], Loss_G: ([\d.]+), Loss_D: ([\d.]+)", line)
 
         if match:
@@ -23,7 +21,6 @@ def parse_losses(log_file):
             gen_losses.append(loss_g)
             disc_losses.append(loss_d)
             
-                
     return epochs, gen_losses, disc_losses
 
 def plot_losses(name,log_file):
@@ -38,9 +35,6 @@ def plot_losses(name,log_file):
     plt.grid(True)
     plt.savefig(f"{log_file}.png")
     plt.close()
-
-
-
 
 if __name__ == "__main__":
     plot_losses("Men without glasses and men with glasses","loss_men.log")
