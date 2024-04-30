@@ -1,9 +1,6 @@
-import argparse
-import os
 import random
 import torch
 import torch.nn as nn
-import torchvision
 import torch.nn.parallel
 import torch.optim as optim
 import torch.utils.data
@@ -108,6 +105,10 @@ def main():
                     # Generate fake images using fixed trained generator
                     noise = torch.randn(real.shape[0], NOISE_DIM, 1, 1).to(device)
                     fake = netG(noise)
+                    
+                    # save fake as an image in a folder, along with noise in a grid
+                    vutils.save_image(fake.detach(), f"results/fake_{epoch}_{batch_idx}.png", normalize=True)
+                    vutils.save_image(noise.detach(), f"results/noise_{epoch}_{batch_idx}.png", normalize=True)
 
                     # Encode fake images
                     encoded_fake = encoder(fake)
