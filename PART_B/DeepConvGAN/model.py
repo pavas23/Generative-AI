@@ -102,7 +102,7 @@ class Encoder(nn.Module):
             nn.LeakyReLU(0.2),
             nn.BatchNorm2d(features_gen*32),
             # layer 7, noise of dim 1000
-            nn.Conv2d(features_gen*32, noise_dim, kernel_size=4, stride=2, padding=0),
+            nn.Conv2d(features_gen*32, noise_dim, kernel_size=2, stride=1, padding=0),  # Adjusted kernel size
             nn.Flatten()
         )
 

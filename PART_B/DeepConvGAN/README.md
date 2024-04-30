@@ -23,4 +23,6 @@ make ```list_attr_celeba.txt``` and ```list_eval_partition.txt```
 
 run ```python split_dataset.py``` to populate train, val and test dirs
 
-run ```python train.py``` to train the dcgan model
+run ```python train_dcgan.py``` to train the dcgan model
+
+run ```python train_encoder.py``` to train the encoder model

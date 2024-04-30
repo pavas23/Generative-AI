@@ -94,14 +94,14 @@ print(len(men_without_glasses))
 # FEATURES_DISC = 64
 # FEATURES_GEN = 64
 
-# # loading trained encoder and generator models
-# # encoder = Encoder(CHANNELS_IMG, FEATURES_GEN, NOISE_DIM).to(device)
-# # encoder.load_state_dict(torch.load("./trained_models/encoder.pth", map_location=device))
-# # encoder.eval()
+# loading trained encoder and generator models
+# encoder = Encoder(CHANNELS_IMG, FEATURES_GEN, NOISE_DIM).to(device)
+# encoder.load_state_dict(torch.load("./trained_models/encoder.pth", map_location=device))
+# encoder.eval()
 
-# # gen = Generator(NOISE_DIM, CHANNELS_IMG, FEATURES_GEN).to(device)
-# # gen.load_state_dict(torch.load("./trained_models/generator.pth", map_location=device))
-# # gen.eval()
+# gen = Generator(NOISE_DIM, CHANNELS_IMG, FEATURES_GEN).to(device)
+# gen.load_state_dict(torch.load("./trained_models/generator.pth", map_location=device))
+# gen.eval()
 
 # list_attr_path = os.path.join("./dataset","list_attr_celeba.txt")
 # with open(list_attr_path,"r") as file:
