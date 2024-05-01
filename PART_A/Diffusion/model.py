@@ -7,11 +7,11 @@ from torchvision import transforms
 from unet import UNet
 
 class DiffusionModel(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, timesteps):
         super().__init__()
         self.unet = UNet(1, 1)
         self.loss_fn = nn.MSELoss()
-        self.num_timesteps = 1000
+        self.num_timesteps = timesteps
         self.betas = torch.linspace(-20, 20, self.num_timesteps)
 
     def forward(self, x, t):
@@ -29,7 +29,7 @@ class DiffusionModel(pl.LightningModule):
         t = torch.randint(0, self.num_timesteps, (images.size(0),))
         preds = self(images, t)
         loss = self.loss_fn(preds, images)
-        self.log("train_loss", loss)
+        self.log("Loss", loss)
         return loss
 
     def configure_optimizers(self):
