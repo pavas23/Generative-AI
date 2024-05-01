@@ -8,9 +8,10 @@ import shutil
 from torch.utils.data import Dataset
 from PIL import Image
 
+
 def read_split_annotations(file_path):
     split_annotations = {}
-    with open(file_path, 'r') as file:
+    with open(file_path, "r") as file:
         lines = file.readlines()
         for line in lines:
             parts = line.strip().split()
@@ -19,12 +20,25 @@ def read_split_annotations(file_path):
             split_annotations[image_name] = split_label
     return split_annotations
 
+
 def split_dataset(root_dir, partition_file):
     split_annotations = read_split_annotations(os.path.join(root_dir, partition_file))
 
-    train_img_names = [image_name for image_name, split_label in split_annotations.items() if split_label == 0]
-    val_img_names = [image_name for image_name, split_label in split_annotations.items() if split_label == 1]
-    test_img_names = [image_name for image_name, split_label in split_annotations.items() if split_label == 2]
+    train_img_names = [
+        image_name
+        for image_name, split_label in split_annotations.items()
+        if split_label == 0
+    ]
+    val_img_names = [
+        image_name
+        for image_name, split_label in split_annotations.items()
+        if split_label == 1
+    ]
+    test_img_names = [
+        image_name
+        for image_name, split_label in split_annotations.items()
+        if split_label == 2
+    ]
 
     # shuffling indices
     random.shuffle(train_img_names)
@@ -33,18 +47,20 @@ def split_dataset(root_dir, partition_file):
 
     return train_img_names, val_img_names, test_img_names
 
+
 def copy_images(source_dir, image_names, destination_dir):
     for image_name in image_names:
         print(image_name)
         source_path = os.path.join(source_dir, image_name)
         print(source_path)
-        destination_path = os.path.join(destination_dir,image_name)
+        destination_path = os.path.join(destination_dir, image_name)
         print(destination_path)
         shutil.copyfile(source_path, destination_path)
 
+
 root_dir = ""
 partition_file = "./list_eval_partition.txt"
-train_img_names, val_img_names, test_img_names = split_dataset(root_dir,partition_file)
+train_img_names, val_img_names, test_img_names = split_dataset(root_dir, partition_file)
 
 source_dir = "/mnt/MIG_store/Datasets/celeba/img_align_celeba/img_align_celeba"
 os.makedirs("dataset", exist_ok=True)
@@ -56,12 +72,12 @@ os.makedirs(destination_dir_train, exist_ok=True)
 os.makedirs(destination_dir_val, exist_ok=True)
 os.makedirs(destination_dir_test, exist_ok=True)
 
-copy_images(source_dir,train_img_names,destination_dir_train)
-copy_images(source_dir,val_img_names,destination_dir_val)
-copy_images(source_dir,test_img_names,destination_dir_test)
+copy_images(source_dir, train_img_names, destination_dir_train)
+copy_images(source_dir, val_img_names, destination_dir_val)
+copy_images(source_dir, test_img_names, destination_dir_test)
 
 
-class CelebADataset(Dataset):
+class SamplingDataset(Dataset):
     def __init__(self, mode, data_dir="/mnt/MIG_store/Datasets/celeba"):
         self.data_dir = data_dir
         self.mode = mode
@@ -117,18 +133,21 @@ class CelebADataset(Dataset):
 
 
 # Datasets
-men_no_glasses = [CelebADataset("men_no_glasses").__getitem__(i) for i in range(5)]
+men_no_glasses = [SamplingDataset("men_no_glasses").__getitem__(i) for i in range(5)]
 people_with_glasses = [
-    CelebADataset("people_with_glasses").__getitem__(i) for i in range(5)
+    SamplingDataset("people_with_glasses").__getitem__(i) for i in range(5)
 ]
 people_no_glasses = [
-    CelebADataset("people_no_glasses").__getitem__(i) for i in range(5)
+    SamplingDataset("people_no_glasses").__getitem__(i) for i in range(5)
 ]
-men_with_glasses = [CelebADataset("men_with_glasses").__getitem__(i) for i in range(5)]
-women_no_glasses = [CelebADataset("women_no_glasses").__getitem__(i) for i in range(5)]
-men_with_smile = [CelebADataset("men_with_smile").__getitem__(i) for i in range(5)]
-people_with_hat_1 = [CelebADataset("people_with_hat").__getitem__(i) for i in range(5)]
-people_with_hat_2 = [CelebADataset("people_with_hat").__getitem__(i) for i in range(5,10)]
-people_no_hat = [CelebADataset("people_no_hat").__getitem__(i) for i in range(5)]
-people_with_mus = [CelebADataset("people_with_mus").__getitem__(i) for i in range(5)]
-people_no_mus = [CelebADataset("people_no_mus").__getitem__(i) for i in range(5)]
+men_with_glasses = [
+    SamplingDataset("men_with_glasses").__getitem__(i) for i in range(5)
+]
+women_no_glasses = [
+    SamplingDataset("women_no_glasses").__getitem__(i) for i in range(5)
+]
+men_with_smile = [SamplingDataset("men_with_smile").__getitem__(i) for i in range(5)]
+people_with_hat = [SamplingDataset("people_with_hat").__getitem__(i) for i in range(5)]
+people_no_hat = [SamplingDataset("people_no_hat").__getitem__(i) for i in range(5)]
+people_with_mus = [SamplingDataset("people_with_mus").__getitem__(i) for i in range(5)]
+people_no_mus = [SamplingDataset("people_no_mus").__getitem__(i) for i in range(5)]
