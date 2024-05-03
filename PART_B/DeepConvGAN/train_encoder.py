@@ -80,7 +80,7 @@ def main():
         avg_val_loss = val_loss / len(dataloader_val)
         print(f"Validation Loss: {avg_val_loss}")
 
-        fig, axs = plt.subplots(2, 5, figsize=(15, 6))
+        _, axs = plt.subplots(2, 5, figsize=(15, 6))
         for j in range(5):
             axs[0, j].imshow(real[j].detach().cpu().numpy().transpose(1, 2, 0))
             axs[0, j].axis("off")

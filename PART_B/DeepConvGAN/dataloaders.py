@@ -86,7 +86,7 @@ smiling_men_dataset = CelebADataset(
     source_dir, "smiling_men", transform=transform
 )
 people_with_hat = CelebADataset(
-    source_dir,"people_wi"
+    source_dir,"people_with_gat", transform=transform
 )
 # Dataloaders
 men_no_glasses_loader = DataLoader(
@@ -109,17 +109,17 @@ print(f"Length of women with glasses loader: {women_with_glasses_loader.__len__(
 
 print(f"Finished initialising datasets and dataloaders")
 
-# sample_batch = next(iter(men_no_glasses_loader))
-# torchvision.utils.save_image(
-#     sample_batch, "men_no_glasses_sample.png", nrow=8, normalize=True, padding=2
-# )
+sample_batch = next(iter(men_no_glasses_loader))
+torchvision.utils.save_image(
+    sample_batch, "men_no_glasses_sample.png", nrow=8, normalize=True, padding=2
+)
 
-# sample_batch = next(iter(men_with_glasses_loader))
-# torchvision.utils.save_image(
-#     sample_batch, "men_with_glasses_sample.png", nrow=8, normalize=True, padding=2
-# )
+sample_batch = next(iter(men_with_glasses_loader))
+torchvision.utils.save_image(
+    sample_batch, "men_with_glasses_sample.png", nrow=8, normalize=True, padding=2
+)
 
-# sample_batch = next(iter(women_with_glasses_loader))
-# torchvision.utils.save_image(
-#     sample_batch, "women_with_glasses_sample.png", nrow=8, normalize=True, padding=2
-# )
+sample_batch = next(iter(women_with_glasses_loader))
+torchvision.utils.save_image(
+    sample_batch, "women_with_glasses_sample.png", nrow=8, normalize=True, padding=2
+)

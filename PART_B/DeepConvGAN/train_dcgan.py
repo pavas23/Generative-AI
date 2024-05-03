@@ -47,7 +47,7 @@ def main():
     netD = Discriminator().to(device)
     criterion = nn.BCELoss()
     fixed_noise = torch.randn(5, 100, 1, 1, device=device)
-    optimizerD = optim.Adam(netD.parameters(), lr=0.0002, betas=(0.5, 0.999))
+    optimizerD = optim.Adam(netD.parameters(), lr=0.0002, betas=(0.5, 0.999)) # stable training at beta = 0.5
     optimizerG = optim.Adam(netG.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
     iters = 0
@@ -85,7 +85,7 @@ def main():
             if i == len(dataloader) - 1:
                 with torch.no_grad():
                     image = netG(fixed_noise).detach().cpu()
-                fig, axs = plt.subplots(1, 5, figsize=(15, 3))
+                _, axs = plt.subplots(1, 5, figsize=(15, 3))
                 for j in range(5):
                     axs[j].imshow(image[j].detach().cpu().numpy().transpose(1, 2, 0))
                     axs[j].axis("off")

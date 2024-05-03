@@ -60,7 +60,10 @@ class Encoder(nn.Module):
             nn.Conv2d(256, 512, 4, 2, 1, bias=False),
             nn.BatchNorm2d(512),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(512, 100, 4, 1, 0, bias=False),
+            nn.Conv2d(512, 1024, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(512, 100, 4, 1, 0, bias=False), # 
             nn.Flatten(),
         )
 
