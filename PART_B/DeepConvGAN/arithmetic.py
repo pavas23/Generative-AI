@@ -2,6 +2,9 @@ import random
 import torch
 import matplotlib.pyplot as plt
 from model import Encoder, Generator
+from PIL import Image
+import numpy as np
+import os
 from split_dataset import (
     men_no_glasses,
     people_with_glasses,
@@ -20,6 +23,25 @@ def generate_image(latent_vector, generator):
     latent_vector = latent_vector.view(1, 100, 1, 1)  # Assuming latent_dim is 100
     generated_image = generator(latent_vector)
     return generated_image[0].detach().cpu().numpy().transpose(1, 2, 0)
+
+
+def plot_combined_grid(image_files, output_filename):
+    # Create a larger plot with 3 rows and however many columns
+    num_files = len(image_files)
+    rows = 3  # Each 3x3 grid has 3 rows
+    cols = num_files  # Number of 3x3 grids to combine
+
+    fig, axs = plt.subplots(rows, cols, figsize=(15, 15))  # Adjust size as needed
+    axs = axs.ravel()  # Flatten for easy iteration
+
+    for i, file_path in enumerate(image_files):
+        img = Image.open(file_path)  # Load the 3x3 grid
+        axs[i].imshow(np.asarray(img))
+        axs[i].axis("off")  # Remove axis for clarity
+
+    plt.tight_layout()
+    plt.savefig(output_filename)  # Save the combined grid
+    plt.close()  # Close the plot
 
 
 # Function to plot a 3x3 grid of images
@@ -66,66 +88,77 @@ def main():
     images.clear()
 
     # Perform vector arithmetic to generate a new latent vector
-    x = 1  # Using the first image from each dataset
-    latent_vector = (
-        encoder(men_with_smile[x])
-        + encoder(people_with_hat[x])
-        - encoder(people_with_hat[x])
-        + encoder(people_with_mus[x])
-        - encoder(people_no_mus[x])
-    )
+    for x in range(5):
+        latent_vector = (
+            encoder(men_with_smile[x])
+            + encoder(people_with_hat[x])
+            - encoder(people_with_hat[x])
+            + encoder(people_with_mus[x])
+            - encoder(people_no_mus[x])
+        )
 
-    latent_vector = latent_vector - 4 * 0.25 * torch.randn([1, 100], device=device)
-    generated_image = generate_image(latent_vector, generator)
-    images.append(generated_image)
-
-    # Generate additional images for the 3x3 grid
-    for i in range(8):
-        latent_vector = latent_vector + 0.25 * torch.randn([1, 100], device=device)
+        latent_vector = latent_vector - 4 * 0.25 * torch.randn([1, 100], device=device)
         generated_image = generate_image(latent_vector, generator)
         images.append(generated_image)
 
-    # Plot and save the 3x3 grid
-    plot_image_grid(images, (3, 3), "men_hat.png")
+        # Generate additional images for the 3x3 grid
+        for i in range(8):
+            latent_vector = latent_vector + 0.25 * torch.randn([1, 100], device=device)
+            generated_image = generate_image(latent_vector, generator)
+            images.append(generated_image)
 
-    # Create second grid with a combination of men with and without glasses, plus women no glasses
-    images.clear()
+        # Plot and save the 3x3 grid
+        plot_image_grid(images, (3, 3), f"men_hat_{x}.png")
 
-    latent_vector = (
-        encoder(men_with_glasses[x])
-        - encoder(men_no_glasses[x])
-        + encoder(women_no_glasses[x])
-    )
+        # Create second grid with a combination of men with and without glasses, plus women no glasses
+        images.clear()
 
-    latent_vector = latent_vector - 4 * 0.25 * torch.randn([1, 100], device=device)
-    generated_image = generate_image(latent_vector, generator)
-    images.append(generated_image)
+    for x in range(5):
+        latent_vector = (
+            encoder(men_with_glasses[x])
+            - encoder(men_no_glasses[x])
+            + encoder(women_no_glasses[x])
+        )
 
-    for i in range(8):
-        latent_vector = latent_vector + 0.25 * torch.randn([1, 100], device=device)
+        latent_vector = latent_vector - 4 * 0.25 * torch.randn([1, 100], device=device)
         generated_image = generate_image(latent_vector, generator)
         images.append(generated_image)
 
-    plot_image_grid(images, (3, 3), "men_women.png")
+        for i in range(8):
+            latent_vector = latent_vector + 0.25 * torch.randn([1, 100], device=device)
+            generated_image = generate_image(latent_vector, generator)
+            images.append(generated_image)
 
-    images.clear()
+        plot_image_grid(images, (3, 3), f"men_women_{x}.png")
 
-    latent_vector = (
-        encoder(men_no_glasses[x])
-        + encoder(people_with_glasses[x])
-        - encoder(people_no_glasses[x])
-    )
+        images.clear()
 
-    latent_vector = latent_vector - 4 * 0.25 * torch.randn([1, 100], device=device)
-    generated_image = generate_image(latent_vector, generator)
-    images.append(generated_image)
+    for x in range(5):
+        latent_vector = (
+            encoder(men_no_glasses[x])
+            + encoder(people_with_glasses[x])
+            - encoder(people_no_glasses[x])
+        )
 
-    for i in range(8):
-        latent_vector = latent_vector + 0.25 * torch.randn([1, 100], device=device)
+        latent_vector = latent_vector - 4 * 0.25 * torch.randn([1, 100], device=device)
         generated_image = generate_image(latent_vector, generator)
         images.append(generated_image)
 
-    plot_image_grid(images, (3, 3), "men_people.png")
+        for i in range(8):
+            latent_vector = latent_vector + 0.25 * torch.randn([1, 100], device=device)
+            generated_image = generate_image(latent_vector, generator)
+            images.append(generated_image)
+
+        plot_image_grid(images, (3, 3), f"men_people_{x}.png")
+        images.clear()
+
+    men_hat_files = [f"men_hat_{x}.png" for x in range(5)]
+    men_people_files = [f"men_people_{x}.png" for x in range(5)]
+    men_women_files = [f"men_women_{x}.png" for x in range(5)]
+
+    plot_combined_grid(men_hat_files, "men_hat_grid.png")
+    plot_combined_grid(men_people_files, "men_people_grid.png")
+    plot_combined_grid(men_women_files, "men_women_grid.png")
 
 
 if __name__ == "__main__":
