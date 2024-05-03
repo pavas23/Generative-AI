@@ -102,8 +102,10 @@ def main():
         images.append(generated_image)
 
         # Generate additional images for the 3x3 grid
+        # get normal distribution of shape 1, 100 with mean 0 and std 0.02
+        
         for i in range(8):
-            latent_vector = latent_vector + 0.25 * torch.randn([1, 100], device=device)
+            latent_vector = latent_vector + 0.25 * 0.02 * torch.randn([1, 100], device=device)
             generated_image = generate_image(latent_vector, generator)
             images.append(generated_image)
 
