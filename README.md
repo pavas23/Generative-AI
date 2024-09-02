@@ -65,6 +65,7 @@ Mean Absolute Error (L1 loss) is used to enforce cycle consistency between the o
 <img width="899" alt="4" src="https://github.com/user-attachments/assets/a7f92979-bfe3-4e7b-aabb-978b75dc46b7">
 <img width="899" alt="5" src="https://github.com/user-attachments/assets/24f439cb-5987-4b96-8590-0e7266ef332d">
 
+
 ### Men with glasses to women with glasses and vice versa
 
 <img width="899" alt="1" src="https://github.com/user-attachments/assets/b3dc3097-ede3-46a7-b3a4-634ee51e0bbd">
@@ -73,9 +74,29 @@ Mean Absolute Error (L1 loss) is used to enforce cycle consistency between the o
 <img width="898" alt="4" src="https://github.com/user-attachments/assets/434a3f0c-a10a-448a-a416-e2b156ceba2d">
 <img width="899" alt="5" src="https://github.com/user-attachments/assets/301ae2ee-e938-4b01-b672-bbb86f30794a">
 
+### Deep Convolutional GAN (DCGAN)
+We implement three neural network models: a Generative Adversarial Network (GAN) Generator, a GAN Discriminator, and a CNN Encoder.
 
+The activation functions used are
+- Leaky ReLU: Used in both the discriminator and encoder models
+- ReLU: Used in the generator for non-linearity.
+- Sigmoid: Used in the final layer of discriminator to output probabilities
 
+The Loss function used for training is `Binary Cross-Entropy Loss`.
 
+## Vector Arithmetic Result
+
+### Men without glasses + People with glasses - People without glasses
+
+<img width="733" alt="men_people" src="https://github.com/user-attachments/assets/d69ed1a1-4b68-40b7-a03e-5936c99b4f29">
+
+### Men with glasses - Men without glasses + Women without glasses
+
+<img width="737" alt="men_women" src="https://github.com/user-attachments/assets/a9a42945-2289-4ba9-94e3-b3665f521c46">
+
+### Smiling Men + People with Hat - People with Hat + People with Mustache - People without Mustache
+
+<img width="738" alt="men_hat" src="https://github.com/user-attachments/assets/678161e7-4a79-4916-8b85-cf0bfe90efe8">
 
 
 
